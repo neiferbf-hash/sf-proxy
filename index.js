@@ -12,37 +12,34 @@ const SF_DOMAIN = 'https://qms-certification.my.salesforce.com';
 
 app.get('/connect', async (req, res) => {
   try {
-    const params = new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET
-    });
-    const r = await fetch(`${SF_DOMAIN}/services/oauth2/token`, {
-      method: 'POST',
-      body: params
-    });
-    const data = await r.json();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    const params = new URLSearchParams({ grant_type:'client_credentials', client_id:CLIENT_ID, client_secret:CLIENT_SECRET });
+    const r = await fetch(`${SF_DOMAIN}/services/oauth2/token`, { method:'POST', body:params });
+    res.json(await r.json());
+  } catch(err) { res.status(500).json({ error:err.message }); }
 });
 
 app.get('/query', async (req, res) => {
   const { token, q } = req.query;
-  if (!token || !q) return res.status(400).json({ error: 'Parâmetros obrigatórios' });
   try {
     const r = await fetch(`${SF_DOMAIN}/services/data/v62.0/query?q=${encodeURIComponent(q)}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    const data = await r.json();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json(await r.json());
+  } catch(err) { res.status(500).json({ error:err.message }); }
+});
+
+app.post('/chat', async (req, res) => {
+  const { messages, system } = req.body;
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key': process.env.ANTHROPIC_KEY, 'anthropic-version':'2023-06-01' },
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, system, messages })
+    });
+    res.json(await r.json());
+  } catch(err) { res.status(500).json({ error:err.message }); }
 });
 
 app.get('/', (req, res) => res.send('SF Proxy rodando!'));
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Porta ${PORT}`));
