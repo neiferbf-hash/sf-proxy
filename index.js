@@ -1,10 +1,12 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
 
 const CLIENT_ID = '3MVG9riCAn8HHkYWaWkJNoB0XZwXPjBb0PyWHXKHaoR557F0aqBxEptwcXAc4iCBl2k3mggzh0dmysUsX7ZQV';
 const CLIENT_SECRET = 'FEC323EDDA941E33103550DD64D5DBC6B66CDBB51E8341F6DB6A2F73182F6FC7';
@@ -33,7 +35,7 @@ app.get('/query', async (req, res) => {
       headers: { 'Authorization': `Bearer ${cachedToken}` }
     });
     let data = await r.json();
-    if (data[0]?.errorCode === 'INVALID_SESSION_ID') {
+    if (Array.isArray(data) && data[0]?.errorCode === 'INVALID_SESSION_ID') {
       await getToken();
       r = await fetch(`${SF_DOMAIN}/services/data/v62.0/query?q=${encodeURIComponent(q)}`, {
         headers: { 'Authorization': `Bearer ${cachedToken}` }
@@ -56,6 +58,7 @@ app.post('/chat', async (req, res) => {
   } catch(err) { res.status(500).json({ error:err.message }); }
 });
 
-app.get('/', (req, res) => res.send('SF Proxy rodando!'));
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Porta ${PORT}`));
