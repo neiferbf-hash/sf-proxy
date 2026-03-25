@@ -2,9 +2,178 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Agente SF</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente Executivo — Salesforce</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #12121a; --surface2: #1a1a26;
+    --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+    --text: #e8e8f0; --text2: #8888aa; --text3: #55556a;
+    --accent: #4f6ef7; --green: #10b981;
+    --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); height: 100vh; display: flex; align-items: center; justify-content: center; }
+  #app { width: 480px; height: 680px; background: var(--surface); border: 0.5px solid var(--border2); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 80px rgba(79,110,247,0.08); }
+  #header { padding: 16px 20px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); transition: background 0.3s; }
+  .dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .header-title { font-size: 13px; font-weight: 500; color: var(--text); letter-spacing: 0.02em; }
+  .header-sub { font-size: 11px; color: var(--text3); margin-left: auto; font-family: var(--mono); }
+  #login-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 32px 28px; }
+  .sf-logo { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #0070D2, #1589EE); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 18px; font-family: var(--mono); }
+  .login-title { font-size: 16px; font-weight: 500; color: var(--text); }
+  .login-desc { font-size: 12px; color: var(--text2); text-align: center; line-height: 1.6; max-width: 280px; }
+  .btn { padding: 11px 20px; font-size: 13px; font-weight: 500; border-radius: 8px; cursor: pointer; width: 100%; max-width: 300px; border: none; font-family: var(--sans); transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #3d5ce6; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-demo { background: transparent; color: var(--text3); border: 0.5px dashed var(--border2); }
+  .btn-demo:hover { color: var(--text2); background: var(--surface2); }
+  .divider { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+  #status-msg { font-size: 12px; color: var(--text2); text-align: center; display: none; font-family: var(--mono); }
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+  .msg { display: flex; gap: 8px; align-items: flex-start; max-width: 88%; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; flex-shrink: 0; margin-top: 2px; font-family: var(--mono); }
+  .msg.agent .avatar { background: rgba(16,185,129,0.15); color: var(--green); border: 0.5px solid rgba(16,185,129,0.2); }
+  .msg.user .avatar { background: rgba(79,110,247,0.15); color: var(--accent); border: 0.5px solid rgba(79,110,247,0.2); }
+  .bubble { padding: 10px 13px; border-radius: 12px; font-size: 13px; line-height: 1.65; }
+  .msg.agent .bubble { background: var(--surface2); border: 0.5px solid var(--border); color: var(--text); }
+  .msg.user .bubble { background: rgba(79,110,247,0.12); border: 0.5px solid rgba(79,110,247,0.2); color: var(--text); }
+  .bubble pre { white-space: pre-wrap; font-family: var(--sans); font-size: 13px; }
+  .typing { display: flex; gap: 4px; align-items: center; padding: 10px 13px; }
+  .typing span { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); animation: blink 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0.2}40%{opacity:0.8} }
+  #suggestions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 8px; }
+  .sug-btn { font-size: 11px; padding: 5px 10px; border: 0.5px solid var(--border2); border-radius: 20px; background: transparent; color: var(--text2); cursor: pointer; font-family: var(--sans); transition: all 0.15s; }
+  .sug-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+  #input-area { padding: 12px 14px; border-top: 0.5px solid var(--border); display: flex; gap: 8px; background: var(--surface); }
+  #user-input { flex: 1; padding: 9px 12px; font-size: 13px; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 8px; color: var(--text); resize: none; height: 38px; font-family: var(--sans); outline: none; transition: border-color 0.2s; }
+  #user-input:focus { border-color: var(--accent); }
+  #send-btn { padding: 0 14px; font-size: 16px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; height: 38px; transition: background 0.2s; }
+  #send-btn:hover { background: #3d5ce6; }
+</style>
 </head>
 <body>
-<script>window.location.href='https://sf-proxy-79qf.onrender.com'</script>
+<div id="app">
+  <div id="header">
+    <div class="dot" id="status-dot"></div>
+    <span class="header-title">Agente Executivo — Salesforce</span>
+    <span class="header-sub" id="header-sub">offline</span>
+  </div>
+  <div id="login-screen">
+    <div class="sf-logo">SF</div>
+    <div class="login-title">Conectar ao Salesforce</div>
+    <div class="login-desc">Conexão automática via servidor seguro. Sem usuário ou senha necessários.</div>
+    <button class="btn btn-primary" id="login-btn">Conectar ao Salesforce QMS</button>
+    <div id="status-msg"></div>
+    <span class="divider">— ou —</span>
+    <button class="btn btn-demo" id="demo-btn">Usar dados de demonstração</button>
+  </div>
+</div>
+<script>
+const PROXY = 'https://sf-proxy-79qf.onrender.com';
+const state = { demo:false, history:[], waiting:false };
+const demoData = {
+  leads:[{Name:'Ana Souza',Company:'Grupo Alfa',Status:'Working',Rating:'Hot'},{Name:'Ricardo Lima',Company:'Beta Ind',Status:'New',Rating:'Warm'},{Name:'Fernanda Costa',Company:'Gamma SA',Status:'Converted',Rating:'Hot'},{Name:'Marcos Rocha',Company:'Delta Corp',Status:'Unqualified',Rating:'Cold'}],
+  opportunities:[{Name:'Projeto ERP Alfa',StageName:'Closed Won',Amount:250000,CloseDate:'2024-03-01',AccountName:'Grupo Alfa'},{Name:'Migração Cloud Beta',StageName:'Negotiation/Review',Amount:180000,CloseDate:'2024-04-15',AccountName:'Beta Ind'},{Name:'Licenças Gamma',StageName:'Closed Lost',Amount:75000,CloseDate:'2024-02-28',AccountName:'Gamma SA'},{Name:'Consultoria Delta',StageName:'Proposal/Price Quote',Amount:95000,CloseDate:'2024-04-30',AccountName:'Delta Corp'}],
+  accounts:[{Name:'Grupo Alfa',Industry:'Technology',AnnualRevenue:5000000,NumberOfEmployees:200,BillingCity:'São Paulo'},{Name:'Beta Ind',Industry:'Manufacturing',AnnualRevenue:12000000,NumberOfEmployees:850,BillingCity:'Campinas'},{Name:'Gamma SA',Industry:'Finance',AnnualRevenue:30000000,NumberOfEmployees:1200,BillingCity:'Rio de Janeiro'}]
+};
+function $(id){ return document.getElementById(id); }
+
+async function doLogin() {
+  const msg=$('status-msg'); msg.style.display='block'; msg.textContent='Conectando ao Salesforce...';
+  $('login-btn').disabled=true;
+  try {
+    const res=await fetch(`${PROXY}/connect`);
+    const data=await res.json();
+    if(data.access_token){ showChat('QMS'); }
+    else { msg.textContent=`Erro: ${data.error_description||data.error||JSON.stringify(data)}`; $('login-btn').disabled=false; }
+  } catch(err){ msg.textContent=`Erro: ${err.message}`; $('login-btn').disabled=false; }
+}
+
+function showChat(label) {
+  $('login-screen').style.display='none';
+  $('status-dot').classList.add('active');
+  $('header-sub').textContent=state.demo?'demo':label.toLowerCase();
+  const app=$('app');
+  const msgs=document.createElement('div'); msgs.id='messages';
+  const sugs=document.createElement('div'); sugs.id='suggestions';
+  const inp=document.createElement('div'); inp.id='input-area';
+  inp.innerHTML=`<textarea id="user-input" placeholder="Pergunte sobre leads, oportunidades, contas..."></textarea><button id="send-btn">↑</button>`;
+  app.appendChild(msgs); app.appendChild(sugs); app.appendChild(inp);
+  addMessage('agent',`Conectado ao Salesforce QMS em **tempo real**!\n\nTenho acesso a Leads, Oportunidades e Contas. O que deseja analisar?`);
+  showSuggestions(['Resumo geral do pipeline','Leads mais quentes','Receita fechada','Contas por setor']);
+  $('send-btn').onclick=sendMessage;
+  $('user-input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}};
+}
+
+function addMessage(role,text) {
+  const msgs=$('messages');
+  const div=document.createElement('div'); div.className=`msg ${role}`;
+  div.innerHTML=`<div class="avatar">${role==='agent'?'SF':'VC'}</div><div class="bubble"><pre>${text.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')}</pre></div>`;
+  msgs.appendChild(div); msgs.scrollTop=msgs.scrollHeight;
+  state.history.push({role:role==='agent'?'assistant':'user',content:text});
+}
+
+function addTyping() {
+  const msgs=$('messages');
+  const div=document.createElement('div'); div.className='msg agent'; div.id='typing-indicator';
+  div.innerHTML=`<div class="avatar">SF</div><div class="bubble typing"><span></span><span></span><span></span></div>`;
+  msgs.appendChild(div); msgs.scrollTop=msgs.scrollHeight;
+}
+function removeTyping(){ const t=$('typing-indicator'); if(t)t.remove(); }
+
+function showSuggestions(items) {
+  const sugs=$('suggestions'); if(!sugs)return; sugs.innerHTML='';
+  items.forEach(s=>{ const btn=document.createElement('button'); btn.className='sug-btn'; btn.textContent=s; btn.onclick=()=>{$('user-input').value=s;sendMessage();}; sugs.appendChild(btn); });
+}
+
+async function fetchSF(soql) {
+  const res=await fetch(`${PROXY}/query?q=${encodeURIComponent(soql)}`);
+  const data=await res.json();
+  return Array.isArray(data)?[]:data.records||[];
+}
+
+async function getSalesforceData() {
+  if(state.demo) return `DADOS DEMO:\nLEADS:\n${JSON.stringify(demoData.leads,null,2)}\nOPORTUNIDADES:\n${JSON.stringify(demoData.opportunities,null,2)}\nCONTAS:\n${JSON.stringify(demoData.accounts,null,2)}`;
+  const [leads,opps,accs]=await Promise.all([
+    fetchSF('SELECT Name,Company,Status,Rating,CreatedDate FROM Lead LIMIT 100'),
+    fetchSF('SELECT Name,StageName,Amount,CloseDate,Account.Name FROM Opportunity LIMIT 100'),
+    fetchSF('SELECT Name,Industry,AnnualRevenue,NumberOfEmployees,BillingCity FROM Account LIMIT 100')
+  ]);
+  return `DADOS SALESFORCE (tempo real):\nLEADS:\n${JSON.stringify(leads,null,2)}\nOPORTUNIDADES:\n${JSON.stringify(opps,null,2)}\nCONTAS:\n${JSON.stringify(accs,null,2)}`;
+}
+
+async function sendMessage() {
+  if(state.waiting)return;
+  const input=$('user-input'); const text=input.value.trim(); if(!text)return;
+  input.value=''; $('suggestions').innerHTML='';
+  addMessage('user',text); state.waiting=true; addTyping();
+  try {
+    const dataContext=await getSalesforceData();
+    const system=`Você é um assistente executivo especializado em análise de dados Salesforce. Responda de forma clara e estratégica para um Diretor/C-level. Use dados concretos e números. Formate com marcadores ao listar. Ao final sugira até 3 perguntas de follow-up no formato: SUGESTÕES: [pergunta1] | [pergunta2] | [pergunta3]\n\n${dataContext}`;
+    const res=await fetch(`${PROXY}/chat`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({system,messages:[...state.history.slice(-8)]})
+    });
+    const data=await res.json();
+    const reply=data.content?.[0]?.text||'Erro ao processar.';
+    removeTyping();
+    const parts=reply.split('SUGESTÕES:');
+    addMessage('agent',parts[0].trim());
+    if(parts[1])showSuggestions(parts[1].split('|').map(s=>s.trim()).filter(Boolean).slice(0,3));
+  } catch(err){ removeTyping(); addMessage('agent',`Erro: ${err.message}`); }
+  state.waiting=false;
+}
+
+$('login-btn').onclick=doLogin;
+$('demo-btn').onclick=()=>{state.demo=true;showChat('Demo');};
+</script>
 </body>
 </html>
