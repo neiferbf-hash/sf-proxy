@@ -142,9 +142,9 @@ async function fetchSF(soql) {
 async function getSalesforceData() {
   if(state.demo) return `DADOS DEMO:\nLEADS:\n${JSON.stringify(demoData.leads,null,2)}\nOPORTUNIDADES:\n${JSON.stringify(demoData.opportunities,null,2)}\nCONTAS:\n${JSON.stringify(demoData.accounts,null,2)}`;
   const [leads,opps,accs]=await Promise.all([
-    fetchSF('SELECT Name,Company,Status,Rating,CreatedDate FROM Lead LIMIT 100'),
-    fetchSF('SELECT Name,StageName,Amount,CloseDate,Account.Name FROM Opportunity LIMIT 100'),
-    fetchSF('SELECT Name,Industry,AnnualRevenue,NumberOfEmployees,BillingCity FROM Account LIMIT 100')
+    fetchSF('SELECT Name,Company,Status,Rating,CreatedDate FROM Lead ORDER BY CreatedDate DESC LIMIT 100'),
+    fetchSF('SELECT Name,StageName,Amount,CloseDate,Account.Name FROM Opportunity ORDER BY CloseDate DESC LIMIT 100'),
+    fetchSF('SELECT Name,Industry,AnnualRevenue,NumberOfEmployees,BillingCity FROM Account ORDER BY LastModifiedDate DESC LIMIT 100')
   ]);
   return `DADOS SALESFORCE (tempo real):\nLEADS:\n${JSON.stringify(leads,null,2)}\nOPORTUNIDADES:\n${JSON.stringify(opps,null,2)}\nCONTAS:\n${JSON.stringify(accs,null,2)}`;
 }
