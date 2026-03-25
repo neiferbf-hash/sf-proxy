@@ -76,11 +76,11 @@
   </div>
 </div>
 <script>
-const PROXY = 'https://sf-proxy-79qf.onrender.com';
+const PROXY = '';
 const state = { demo:false, history:[], waiting:false };
 const demoData = {
-  leads:[{Name:'Ana Souza',Company:'Grupo Alfa',Status:'Working',Rating:'Hot'},{Name:'Ricardo Lima',Company:'Beta Ind',Status:'New',Rating:'Warm'},{Name:'Fernanda Costa',Company:'Gamma SA',Status:'Converted',Rating:'Hot'},{Name:'Marcos Rocha',Company:'Delta Corp',Status:'Unqualified',Rating:'Cold'}],
-  opportunities:[{Name:'Projeto ERP Alfa',StageName:'Closed Won',Amount:250000,CloseDate:'2024-03-01',AccountName:'Grupo Alfa'},{Name:'Migração Cloud Beta',StageName:'Negotiation/Review',Amount:180000,CloseDate:'2024-04-15',AccountName:'Beta Ind'},{Name:'Licenças Gamma',StageName:'Closed Lost',Amount:75000,CloseDate:'2024-02-28',AccountName:'Gamma SA'},{Name:'Consultoria Delta',StageName:'Proposal/Price Quote',Amount:95000,CloseDate:'2024-04-30',AccountName:'Delta Corp'}],
+  leads:[{Name:'Ana Souza',Company:'Grupo Alfa',Status:'Working',Rating:'Hot',CreatedDate:'2026-03-01'},{Name:'Ricardo Lima',Company:'Beta Ind',Status:'New',Rating:'Warm',CreatedDate:'2026-03-05'},{Name:'Fernanda Costa',Company:'Gamma SA',Status:'Converted',Rating:'Hot',CreatedDate:'2026-03-10'},{Name:'Marcos Rocha',Company:'Delta Corp',Status:'Unqualified',Rating:'Cold',CreatedDate:'2026-02-15'}],
+  opportunities:[{Name:'Projeto ERP Alfa',StageName:'Closed Won',Amount:250000,CloseDate:'2026-03-01',AccountName:'Grupo Alfa'},{Name:'Migração Cloud Beta',StageName:'Negotiation/Review',Amount:180000,CloseDate:'2026-04-15',AccountName:'Beta Ind'},{Name:'Licenças Gamma',StageName:'Closed Lost',Amount:75000,CloseDate:'2026-02-28',AccountName:'Gamma SA'},{Name:'Consultoria Delta',StageName:'Proposal/Price Quote',Amount:95000,CloseDate:'2026-04-30',AccountName:'Delta Corp'}],
   accounts:[{Name:'Grupo Alfa',Industry:'Technology',AnnualRevenue:5000000,NumberOfEmployees:200,BillingCity:'São Paulo'},{Name:'Beta Ind',Industry:'Manufacturing',AnnualRevenue:12000000,NumberOfEmployees:850,BillingCity:'Campinas'},{Name:'Gamma SA',Industry:'Finance',AnnualRevenue:30000000,NumberOfEmployees:1200,BillingCity:'Rio de Janeiro'}]
 };
 function $(id){ return document.getElementById(id); }
@@ -89,7 +89,7 @@ async function doLogin() {
   const msg=$('status-msg'); msg.style.display='block'; msg.textContent='Conectando ao Salesforce...';
   $('login-btn').disabled=true;
   try {
-    const res=await fetch(`${PROXY}/connect`);
+    const res=await fetch('/connect');
     const data=await res.json();
     if(data.access_token){ showChat('QMS'); }
     else { msg.textContent=`Erro: ${data.error_description||data.error||JSON.stringify(data)}`; $('login-btn').disabled=false; }
@@ -106,8 +106,8 @@ function showChat(label) {
   const inp=document.createElement('div'); inp.id='input-area';
   inp.innerHTML=`<textarea id="user-input" placeholder="Pergunte sobre leads, oportunidades, contas..."></textarea><button id="send-btn">↑</button>`;
   app.appendChild(msgs); app.appendChild(sugs); app.appendChild(inp);
-  addMessage('agent',`Conectado ao Salesforce QMS em **tempo real**!\n\nTenho acesso a Leads, Oportunidades e Contas. O que deseja analisar?`);
-  showSuggestions(['Resumo geral do pipeline','Leads mais quentes','Receita fechada','Contas por setor']);
+  addMessage('agent',`Conectado ao Salesforce QMS em **tempo real**!\n\nPosso consultar qualquer período, filtro ou análise. O que deseja saber?`);
+  showSuggestions(['Leads de março/2026','Resumo do pipeline atual','Receita fechada em 2026','Contas por setor']);
   $('send-btn').onclick=sendMessage;
   $('user-input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}};
 }
@@ -134,19 +134,10 @@ function showSuggestions(items) {
 }
 
 async function fetchSF(soql) {
-  const res=await fetch(`${PROXY}/query?q=${encodeURIComponent(soql)}`);
+  if(!soql) return [];
+  const res=await fetch(`/query?q=${encodeURIComponent(soql)}`);
   const data=await res.json();
   return Array.isArray(data)?[]:data.records||[];
-}
-
-async function getSalesforceData() {
-  if(state.demo) return `DADOS DEMO:\nLEADS:\n${JSON.stringify(demoData.leads,null,2)}\nOPORTUNIDADES:\n${JSON.stringify(demoData.opportunities,null,2)}\nCONTAS:\n${JSON.stringify(demoData.accounts,null,2)}`;
-  const [leads,opps,accs]=await Promise.all([
-    fetchSF('SELECT Name,Company,Status,Rating,CreatedDate FROM Lead ORDER BY CreatedDate DESC LIMIT 100'),
-    fetchSF('SELECT Name,StageName,Amount,CloseDate,Account.Name FROM Opportunity ORDER BY CloseDate DESC LIMIT 100'),
-    fetchSF('SELECT Name,Industry,AnnualRevenue,NumberOfEmployees,BillingCity FROM Account ORDER BY LastModifiedDate DESC LIMIT 100')
-  ]);
-  return `DADOS SALESFORCE (tempo real):\nLEADS:\n${JSON.stringify(leads,null,2)}\nOPORTUNIDADES:\n${JSON.stringify(opps,null,2)}\nCONTAS:\n${JSON.stringify(accs,null,2)}`;
 }
 
 async function sendMessage() {
@@ -155,9 +146,52 @@ async function sendMessage() {
   input.value=''; $('suggestions').innerHTML='';
   addMessage('user',text); state.waiting=true; addTyping();
   try {
-    const dataContext=await getSalesforceData();
-    const system=`Você é um assistente executivo especializado em análise de dados Salesforce. Responda de forma clara e estratégica para um Diretor/C-level. Use dados concretos e números. Formate com marcadores ao listar. Ao final sugira até 3 perguntas de follow-up no formato: SUGESTÕES: [pergunta1] | [pergunta2] | [pergunta3]\n\n${dataContext}`;
-    const res=await fetch(`${PROXY}/chat`,{
+    if(state.demo) {
+      const dataContext=`DADOS DEMO:\nLEADS:\n${JSON.stringify(demoData.leads,null,2)}\nOPORTUNIDADES:\n${JSON.stringify(demoData.opportunities,null,2)}\nCONTAS:\n${JSON.stringify(demoData.accounts,null,2)}`;
+      const res=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:`Você é um assistente executivo Salesforce. Data hoje: ${new Date().toLocaleDateString('pt-BR')}. ${dataContext}`,messages:[...state.history.slice(-8)]})});
+      const data=await res.json();
+      const reply=data.content?.[0]?.text||'Erro.';
+      removeTyping();
+      const parts=reply.split('SUGESTÕES:');
+      addMessage('agent',parts[0].trim());
+      if(parts[1])showSuggestions(parts[1].split('|').map(s=>s.trim()).filter(Boolean).slice(0,3));
+      state.waiting=false;
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const planRes = await fetch('/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        system:`Você é um gerador de queries SOQL para Salesforce. Dado uma pergunta, retorne APENAS um JSON válido com as queries necessárias, sem texto adicional, sem markdown, sem explicações. Formato exato: {"leads":"QUERY_AQUI","opportunities":"QUERY_AQUI","accounts":"QUERY_AQUI"}. Se não precisar de um objeto, use string vazia "". Campos disponíveis: Lead(Id,Name,Company,Status,Rating,CreatedDate,Email,Phone,LeadSource), Opportunity(Id,Name,StageName,Amount,CloseDate,AccountId,Account.Name,CreatedDate,LastModifiedDate,OwnerId), Account(Id,Name,Industry,AnnualRevenue,NumberOfEmployees,BillingCity,LastModifiedDate). Para filtros de data use formato ISO: 2026-03-01T00:00:00Z. LIMIT máximo permitido: 2000. Data de hoje: ${today}.`,
+        messages:[{role:'user',content:`Gere as queries SOQL para responder: "${text}"`}]
+      })
+    });
+    const planData = await planRes.json();
+    let planText = planData.content?.[0]?.text || '{}';
+    planText = planText.replace(/```json|```/g,'').trim();
+    let queries;
+    try { queries = JSON.parse(planText); }
+    catch(e) {
+      queries = {
+        leads:`SELECT Name,Company,Status,Rating,CreatedDate FROM Lead ORDER BY CreatedDate DESC LIMIT 200`,
+        opportunities:`SELECT Name,StageName,Amount,CloseDate,Account.Name FROM Opportunity ORDER BY LastModifiedDate DESC LIMIT 200`,
+        accounts:``
+      };
+    }
+
+    const [leads,opps,accs] = await Promise.all([
+      fetchSF(queries.leads),
+      fetchSF(queries.opportunities),
+      fetchSF(queries.accounts)
+    ]);
+
+    const dataContext = `DADOS SALESFORCE (tempo real - ${new Date().toLocaleDateString('pt-BR')}):\nLEADS (${leads.length} registros):\n${JSON.stringify(leads,null,2)}\nOPORTUNIDADES (${opps.length} registros):\n${JSON.stringify(opps,null,2)}\nCONTAS (${accs.length} registros):\n${JSON.stringify(accs,null,2)}`;
+
+    const system=`Você é um assistente executivo especializado em análise de dados Salesforce da empresa QMS. Data de hoje: ${new Date().toLocaleDateString('pt-BR')}. Responda de forma clara e estratégica para um Diretor/C-level. Use dados concretos e números reais dos dados fornecidos. Formate com marcadores ao listar. Ao final sugira até 3 perguntas de follow-up no formato: SUGESTÕES: [pergunta1] | [pergunta2] | [pergunta3]\n\n${dataContext}`;
+
+    const res=await fetch('/chat',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({system,messages:[...state.history.slice(-8)]})
