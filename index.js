@@ -7,14 +7,12 @@ app.use(cors());
 app.use(express.json());
 
 app.post('/login', async (req, res) => {
-  const { username, password, client_id, client_secret } = req.body;
+  const { client_id, client_secret } = req.body;
   try {
     const params = new URLSearchParams({
-      grant_type: 'password',
+      grant_type: 'client_credentials',
       client_id,
-      client_secret,
-      username,
-      password
+      client_secret
     });
     const r = await fetch('https://login.salesforce.com/services/oauth2/token', {
       method: 'POST',
@@ -29,7 +27,7 @@ app.post('/login', async (req, res) => {
 
 app.get('/query', async (req, res) => {
   const { instance, token, q } = req.query;
-  if (!instance || !token || !q) return res.status(400).json({ error: 'Parâmetros obrigatórios: instance, token, q' });
+  if (!instance || !token || !q) return res.status(400).json({ error: 'Parâmetros obrigatórios' });
   try {
     const r = await fetch(`${instance}/services/data/v62.0/query?q=${encodeURIComponent(q)}`, {
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
